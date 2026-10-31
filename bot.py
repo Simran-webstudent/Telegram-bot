@@ -26,7 +26,6 @@ def start_dummy_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-# Start dummy server in background thread so cloud provider stays happy
 threading.Thread(target=start_dummy_server, daemon=True).start()
 # -------------------------------------------------------------------------
 
@@ -36,11 +35,10 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-# Configuration
+# Configuration (Using parentheses to handle mobile screen line-wrapping safely)
 BOT_TOKEN = (
     "8525088862:AAFif8rY3R-INyIsTjFpsqiECs99cgpS5v8"
 )
-
 
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 
@@ -50,6 +48,7 @@ BANNED_WORDS = [
 ]
 
 APPROVED_USERS = {1448151744}
+NOTIFIED_USERS = set()
 last_error_state = None
 
 
@@ -69,14 +68,14 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "🤖 **BOT COMMANDS GUIDE & USAGE** 🚀\n\n"
         "1️⃣ **/check** — Kisi user ki details aur history check karne ke liye:\n"
-        "   • `/check 123456789` ya `/check @username` (Ya user ke message par reply karke `/check` likhein)\n\n"
-        "2️⃣ **/approve** — User ko unrestricted chat dene ke liye:\n"
+        "   • `/check 123456789` ya `/check @username`\n\n"
+        "2️⃣ **/approve** — User ko approve / unrestrict karne ke liye:\n"
         "   • `/approve 123456789` / `/approve @username` / Reply to message\n\n"
-        "3️⃣ **/restrict** — Approved user ko wapas restrict/block karne ke liye:\n"
+        "3️⃣ **/restrict** — User ko restrict / block karne ke liye:\n"
         "   • `/restrict 123456789` / `/restrict @username` / Reply to message\n\n"
-        "4️⃣ **/restart** — Bot ko instantly DM se reboot karne ke liye.\n"
-        "5️⃣ **.del** — Message turant delete karne ke liye.\n\n"
-        "💡 *Note:* Sabhi actions bot ke DM mein turant (real-time) execute hote hain!"
+        "4️⃣ **/restart** — Bot ko instantly restart karne ke liye.\n"
+        "5️⃣ **.del** — Message delete karne ke liye.\n\n"
+        "💡 *Note:* Saare actions stealth mode mein kaam karte hain!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -107,7 +106,7 @@ async def check_user_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if target_id:
         is_approved = target_id in APPROVED_USERS
-        status_str = "✨ Approved & Unrestricted" if is_approved else "🔒 Restricted / Stranger"
+        status_str = "✨ Approved & Unrestricted (Ab yeh khul kar chat kar sakta hai)" if is_approved else "🔒 Restricted / Stranger (Media aur spam blocked hai)"
         
         report_text = (
             f"🔍 **USER CHECK REPORT**\n\n"
@@ -122,8 +121,7 @@ async def check_user_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "⚠️ **Sahi tareeka use karein:**\n"
             "• `/check <USER_ID>`\n"
-            "• `/check @username`\n"
-            "• User ke message par reply karke `/check` likhein.",
+            "• `/check @username`",
             parse_mode="Markdown"
         )
 
@@ -154,8 +152,10 @@ async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if target_id:
         APPROVED_USERS.add(target_id)
+        if target_id in NOTIFIED_USERS:
+            NOTIFIED_USERS.remove(target_id)
         await update.message.reply_text(
-            f"✨ **Success!** {target_name} (ID: `{target_id}`) ko successfully approve kar diya gaya hai.",
+            f"✨ **Success!** {target_name} (ID: `{target_id}`) ab **Approved** ho gaya hai! Ab yeh unrestricted chat kar sakta hai aur is par koi media restriction nahi hai.",
             parse_mode="Markdown"
         )
     else:
@@ -184,15 +184,21 @@ async def restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target_username = arg.replace("@", "").lower()
             target_id = context.bot_data.get(f"user_{target_username}")
 
-    if target_id and target_id in APPROVED_USERS:
+    if target_id:
         if target_id == ADMIN_CHAT_ID:
             await update.message.reply_text("⚠️ Aap owner ko restrict nahi kar sakte!")
             return
-        APPROVED_USERS.remove(target_id)
-        await update.message.reply_text(f"🔒 User (`{target_id}`) ko successfully restrict kar diya gaya hai!", parse_mode="Markdown")
+        
+        if target_id in APPROVED_USERS:
+            APPROVED_USERS.remove(target_id)
+        
+        await update.message.reply_text(
+            f"🔒 **Success!** User (`{target_id}`) ko successfully **Restrict** kar diya gaya hai! Ab yeh koi bhi unwanted media files ya restricted content share nahi kar payega.",
+            parse_mode="Markdown"
+        )
     else:
         await update.message.reply_text(
-            "⚠️ **Usage:** `/restrict <USER_ID>` / `/restrict @username` ya approved user ke message par reply karein.",
+            "⚠️ **Usage:** `/restrict <USER_ID>` / `/restrict @username` ya user ke message par reply karein.",
             parse_mode="Markdown"
         )
 
@@ -204,21 +210,10 @@ async def handle_contact_share(update: Update, context: ContextTypes.DEFAULT_TYP
     contact = update.message.contact
     if contact and contact.user_id:
         APPROVED_USERS.add(contact.user_id)
-        await update.message.reply_text(f"✨ Contact **{contact.first_name}** approved!")
+        await update.message.reply_text(f"✨ Contact **{contact.first_name}** successfully **Approved** ho gaya hai!")
 
 
-# --- SMART AI CONVERSATION ENGINE ---
-def generate_ai_response(user_text: str, user_name: str) -> str:
-    txt = user_text.lower().strip()
-    if any(greet in txt for greet in ["hello", "hii", "hi", "hey"]):
-        return f"Hello {user_name}! 👋 Main yahan owner ki assistant ki tarah help kar rahi hun. Aap bataiye, kya baat karni thi?"
-    elif "kaise ho" in txt or "how are you" in txt:
-        return "Main ekdum badhiya aur active hun! 😊 Aap kaise hain?"
-    else:
-        return f"Aapka message mil gaya hai {user_name}. Main owner ko notify kar doongi, wo free ho kar aapse contact kar lenge! 👍"
-
-
-# --- UNIFIED DM & BUSINESS MESSAGE HANDLER ---
+# --- UNIFIED DM & MEDIA RESTRICTION HANDLER (STEALTH MODE) ---
 async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global last_error_state
     if last_error_state is not None:
@@ -250,8 +245,8 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_name = sender.first_name or "Dear"
     user_id = sender.id
 
-    # 1. Restrict All Kinds of Media
-    has_restricted_media = (
+    # Dedicated Media Restriction Check
+    has_restricted_media = bool(
         message.animation or 
         message.photo or 
         message.video or 
@@ -261,33 +256,35 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
         message.voice
     )
 
-    # 2. Strict Abusive/Adult Content Check
+    # Strict Abusive/Adult Content Check
     text_content = (message.text or message.caption or "").lower()
     has_banned_content = any(banned in text_content for banned in BANNED_WORDS)
 
-    if has_restricted_media or has_banned_content:
+    if has_restricted_media or has_banned_content or (user_id not in APPROVED_USERS):
         try:
             await message.delete()
             
-            rejection_text = "Hello, can i know why are you messaging me? Don't message me! Why are you messaging me? I am not interested."
-            if is_business and business_conn_id:
-                await context.bot.send_message(
-                    chat_id=message.chat_id,
-                    text=rejection_text,
-                    business_connection_id=business_conn_id
-                )
-            else:
-                await message.reply_text(rejection_text)
-                
-            media_type_desc = "Video / Video Note" if (message.video or message.video_note) else ("Photo / Image" if message.photo else "Media / Document")
+            if user_id not in NOTIFIED_USERS:
+                NOTIFIED_USERS.add(user_id)
+                rejection_text = "Hello, can i know why are you messaging me? Don't message me! Why are you messaging me? I am not interested."
+                if is_business and business_conn_id:
+                    await context.bot.send_message(
+                        chat_id=message.chat_id,
+                        text=rejection_text,
+                        business_connection_id=business_conn_id
+                    )
+                else:
+                    await message.reply_text(rejection_text)
+            
+            media_type_desc = "Video / Video Note" if (message.video or message.video_note) else ("Photo / Image" if message.photo else ("Media / Document" if has_restricted_media else "Text Message"))
             
             alert_header = (
-                f"🚨 **BLOCKED MEDIA / SPAM PREVIEW**\n\n"
+                f"🚨 **STEALTH BLOCKED SPAM / MEDIA**\n\n"
                 f"👤 **Sender:** {user_name} (ID: `{user_id}`)\n"
                 f"📁 **Type:** {media_type_desc}\n"
-                f"💬 **Caption:** `{message.text or message.caption or 'None'}`\n\n"
+                f"💬 **Content:** `{message.text or message.caption or 'None'}`\n\n"
                 f"💡 **Quick Action:** `/approve {user_id}` ya `/check {user_id}`\n"
-                f"⏳ *Yeh preview 10 minutes mein auto-delete ho jayega.*"
+                f"⏳ *Yeh alert 10 minutes mein auto-delete ho jayega.*"
             )
             
             alert_msg = await context.bot.send_message(
@@ -297,14 +294,15 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             
             forwarded_media = None
-            if is_business and business_conn_id:
-                forwarded_media = await context.bot.copy_message(
-                    chat_id=ADMIN_CHAT_ID,
-                    from_chat_id=message.chat_id,
-                    message_id=message.message_id
-                )
-            else:
-                forwarded_media = await message.forward(chat_id=ADMIN_CHAT_ID)
+            if has_restricted_media:
+                if is_business and business_conn_id:
+                    forwarded_media = await context.bot.copy_message(
+                        chat_id=ADMIN_CHAT_ID,
+                        from_chat_id=message.chat_id,
+                        message_id=message.message_id
+                    )
+                else:
+                    forwarded_media = await message.forward(chat_id=ADMIN_CHAT_ID)
 
             async def delete_preview_later(chat_id, alert_id, media_id):
                 await asyncio.sleep(600)
@@ -318,23 +316,8 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
             asyncio.create_task(delete_preview_later(ADMIN_CHAT_ID, alert_msg.message_id, forwarded_media))
             
         except Exception as e:
-            print(f"❌ Restriction/Forward Error: {e}")
+            print(f"❌ Restriction Error: {e}")
         return
-
-    # 3. Smart AI Conversational Reply for Normal Text
-    if message.text:
-        ai_reply = generate_ai_response(message.text, user_name)
-        try:
-            if is_business and business_conn_id:
-                await context.bot.send_message(
-                    chat_id=message.chat_id,
-                    text=ai_reply,
-                    business_connection_id=business_conn_id
-                )
-            else:
-                await message.reply_text(ai_reply)
-        except Exception as e:
-            print(f"❌ Reply Error: {e}")
 
 
 # --- DELETE COMMAND (.del) ---
@@ -378,7 +361,7 @@ async def post_init(application):
     
     await application.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
-        text="✅ **Bot is online with full command suite active!** 🚀",
+        text="✅ **Bot is online with confirmation notices active!** 🚀",
         parse_mode="Markdown"
     )
 
@@ -409,7 +392,6 @@ def main():
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
         
-        # Fixed Handler for incoming messages and media restrictions
         app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
 
         app.add_error_handler(error_handler)
