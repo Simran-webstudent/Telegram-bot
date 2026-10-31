@@ -38,7 +38,9 @@ logging.basicConfig(
 )
 
 # Configuration
-BOT_TOKEN = "8525088862:AAGG9ocV6BMSjwMqaTkJWg-Akj0QHrLZ2w0"
+BOT_TOKEN = "8525088862:AAGG9ocV6BMSjwMqaTkJWg-\
+Akj0QHrLZ2w0"
+
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 
 # Strict Banned words
