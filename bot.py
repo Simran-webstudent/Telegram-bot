@@ -42,10 +42,10 @@ BOT_TOKEN = (
 
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 
-# Strict Banned words
-BANNED_WORDS = [
+# Dynamic Banned words Set (Ab aap inhein DM se add/remove kar sakti hain)
+BANNED_WORDS = {
     "abuse", "badword", "idiot", "sex", "porn", "adult", "bhadwa", "chutiya", "randi", "gali"
-]
+}
 
 APPROVED_USERS = {1448151744}       # Normal text chat ke liye approved users
 MEDIA_APPROVED_USERS = {1448151744}  # Sirf media sharing ke liye approved users
@@ -69,19 +69,60 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "🤖 **BOT COMMANDS GUIDE & USAGE** 🚀\n\n"
         "1️⃣ **/check** — User ki details aur approval status check karne ke liye:\n"
-        "   • `/check 123456789` ya `/check @username` (Ya message par reply karein)\n\n"
+        "   • `/check <USER_ID>` ya `/check @username` (Ya message par reply karein)\n\n"
         "2️⃣ **/approve** — User ko normal text chat ke liye approve karne ke liye:\n"
         "   • `/approve <USER_ID>` / Reply to message\n\n"
         "3️⃣ **/restrict** — User ko text chat se restrict karne ke liye:\n"
         "   • `/restrict <USER_ID>` / Reply to message\n\n"
-        "4️⃣ **🖼️ /mediaapprove** — User ko media (photo/video) bhejne ki permission dene ke liye:\n"
+        "4️⃣ **/mediaapprove** — User ko media bhejne ki permission dene ke liye:\n"
         "   • `/mediaapprove <USER_ID>` / Reply to message\n\n"
-        "5️⃣ **🔒 /mediarestrict** — User ki media sharing permission wapas lene ke liye:\n"
+        "5️⃣ **/mediarestrict** — User ki media sharing permission wapas lene ke liye:\n"
         "   • `/mediarestrict <USER_ID>` / Reply to message\n\n"
-        "6️⃣ **/restart** — Bot ko instantly restart karne ke liye.\n"
-        "7️⃣ **.del** — Message delete karne ke liye."
+        "6️⃣ 📝 **BANNED WORDS MANAGEMENT (NEW):**\n"
+        "   • `/addword <word>` — Naya banned word add karne ke liye\n"
+        "   • `/delword <word>` — Banned word hatane ke liye\n"
+        "   • `/listwords` — Saare active banned words ki list dekhne ke liye\n\n"
+        "7️⃣ **/restart** — Bot ko instantly restart karne ke liye.\n"
+        "8️⃣ **.del** — Message delete karne ke liye."
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
+
+
+# --- DYNAMIC BANNED WORDS COMMANDS ---
+async def add_word_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    if not context.args:
+        await update.message.reply_text("⚠️ **Usage:** `/addword <banned_word>`", parse_mode="Markdown")
+        return
+    
+    word = context.args[0].lower().strip()
+    BANNED_WORDS.add(word)
+    await update.message.reply_text(f"✅ **Success!** `{word}` ko banned words list mein add kar diya gaya hai.", parse_mode="Markdown")
+
+async def del_word_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    if not context.args:
+        await update.message.reply_text("⚠️ **Usage:** `/delword <banned_word>`", parse_mode="Markdown")
+        return
+    
+    word = context.args[0].lower().strip()
+    if word in BANNED_WORDS:
+        BANNED_WORDS.remove(word)
+        await update.message.reply_text(f"🗑️ **Success!** `{word}` ko banned words list se hata diya gaya hai.", parse_mode="Markdown")
+    else:
+        await update.message.reply_text(f"⚠️ `{word}` list mein maujud nahi hai.", parse_mode="Markdown")
+
+async def list_words_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    
+    words_list = ", ".join([f"`{w}`" for w in BANNED_WORDS])
+    await update.message.reply_text(
+        f"📋 **Current Banned Words List:**\n\n{words_list}",
+        parse_mode="Markdown"
+    )
 
 
 # --- CHECK USER COMMAND ---
@@ -163,7 +204,7 @@ async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if target_id in NOTIFIED_USERS:
             NOTIFIED_USERS.remove(target_id)
         await update.message.reply_text(
-            f"✨ **Success!** {target_name} (ID: `{target_id}`) ab **Text Chat ke liye Approved** ho gaya hai! (Lekin media permissions ke liye alag se `/mediaapprove` use karein agar zaroorat ho)",
+            f"✨ **Success!** {target_name} (ID: `{target_id}`) ab **Text Chat ke liye Approved** ho gaya hai!",
             parse_mode="Markdown"
         )
     else:
@@ -238,7 +279,7 @@ async def media_approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if target_id:
         MEDIA_APPROVED_USERS.add(target_id)
         await update.message.reply_text(
-            f"🖼️ **Success!** {target_name} (ID: `{target_id}`) ko **Media Sharing ke liye Approve** kar diya gaya hai! Ab yeh media files bhej sakta hai.",
+            f"🖼️ **Success!** {target_name} (ID: `{target_id}`) ko **Media Sharing ke liye Approve** kar diya gaya hai!",
             parse_mode="Markdown"
         )
     else:
@@ -276,7 +317,7 @@ async def media_restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE
             MEDIA_APPROVED_USERS.remove(target_id)
         
         await update.message.reply_text(
-            f"🔒 **Success!** User (`{target_id}`) ki **Media Sharing restrict** kar di gayi hai! Ab yeh koi media file nahi bhej payega.",
+            f"🔒 **Success!** User (`{target_id}`) ki **Media Sharing restrict** kar di gayi hai!",
             parse_mode="Markdown"
         )
     else:
@@ -469,13 +510,16 @@ async def post_init(application):
         BotCommand("restrict", "Text chat restrict karein"),
         BotCommand("mediaapprove", "Media sharing approve karein"),
         BotCommand("mediarestrict", "Media sharing restrict karein"),
+        BotCommand("addword", "Naya banned word add karein"),
+        BotCommand("delword", "Banned word hatayein"),
+        BotCommand("listwords", "Banned words ki list dekhein"),
         BotCommand("restart", "Bot restart karein"),
         BotCommand("del", "Message delete karein")
     ])
     
     await application.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
-        text="✅ **Bot is online with independent Media & Text restrictions active!** 🚀",
+        text="✅ **Bot is online with Dynamic Banned Words & Separate Media controls active!** 🚀",
         parse_mode="Markdown"
     )
 
@@ -505,6 +549,9 @@ def main():
         app.add_handler(CommandHandler("restrict", restrict_user))
         app.add_handler(CommandHandler("mediaapprove", media_approve_user))
         app.add_handler(CommandHandler("mediarestrict", media_restrict_user))
+        app.add_handler(CommandHandler("addword", add_word_cmd))
+        app.add_handler(CommandHandler("delword", del_word_cmd))
+        app.add_handler(CommandHandler("listwords", list_words_cmd))
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
         
