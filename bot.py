@@ -2,6 +2,8 @@ import os
 import sys
 import asyncio
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, BotCommand
 from telegram.request import HTTPXRequest
 from telegram.ext import (
@@ -13,6 +15,22 @@ from telegram.ext import (
     filters,
 )
 
+# --- DUMMY HTTP SERVER FOR CLOUD HOSTING (RENDER / FLY.IO HEALTH CHECK) ---
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive and running!")
+
+def start_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
+# Start dummy server in background thread so cloud provider stays happy
+threading.Thread(target=start_dummy_server, daemon=True).start()
+# -------------------------------------------------------------------------
+
 # Logging Setup
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -20,7 +38,7 @@ logging.basicConfig(
 )
 
 # Configuration
-BOT_TOKEN = "8525088862:AAHOITECNV8zLJOcZaX8LS-jno1SzPeC_g"
+BOT_TOKEN = 8525088862:AAHOITECNV8zLJOcZaX8LS-jno1SzPeC_g"
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 
 # Strict Banned words
@@ -55,7 +73,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   • `/restrict 123456789` / `/restrict @username` / Reply to message\n\n"
         "4️⃣ **/restart** — Bot ko instantly DM se reboot karne ke liye.\n"
         "5️⃣ **.del** — Message turant delete karne ke liye.\n\n"
-        "💡 *Note:* Sabhi actions bot ke DM mein turant (real-time) execute hote hain!"
+        "💡 *Note:* Sabhi actions bot ke DM mein turant (real-time) execute hote hil!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -346,7 +364,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def post_init(application):
-    # Set Native Bot Commands Menu in Telegram DM
     await application.bot.set_my_commands([
         BotCommand("help", "Saari commands ki list aur details dekhein"),
         BotCommand("check", "Kisi user ki details aur history check karein"),
@@ -405,4 +422,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
