@@ -1,0 +1,5 @@
+app = "telegram-bot"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
