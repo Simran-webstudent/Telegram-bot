@@ -11,7 +11,6 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
     MessageHandler,
-    TypeHandler,
     filters,
 )
 
@@ -38,7 +37,8 @@ logging.basicConfig(
 )
 
 # Configuration
-BOT_TOKEN = """8525088862:AAFif8rY3R-INyIsTjFpsqiECs99cgpS5v8"""
+BOT_TOKEN = "8525088862:AAFif8rY3R-
+INyIsTjFpsqiECs99cgpS5v8"
 
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 
@@ -74,7 +74,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   • `/restrict 123456789` / `/restrict @username` / Reply to message\n\n"
         "4️⃣ **/restart** — Bot ko instantly DM se reboot karne ke liye.\n"
         "5️⃣ **.del** — Message turant delete karne ke liye.\n\n"
-        "💡 *Note:* Sabhi actions bot ke DM mein turant (real-time) execute hote hil!"
+        "💡 *Note:* Sabhi actions bot ke DM mein turant (real-time) execute hote hain!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -407,7 +407,8 @@ def main():
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
         
-        app.add_handler(TypeHandler(Update, process_incoming_dm))
+        # Fixed Handler for incoming messages and media restrictions
+        app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
 
         app.add_error_handler(error_handler)
 
