@@ -5,6 +5,7 @@ import asyncio
 import logging
 import threading
 import urllib.request
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from cryptography.fernet import Fernet
 from telegram import Update, BotCommand
@@ -38,7 +39,6 @@ def self_ping_loop():
             urllib.request.urlopen(f"http://127.0.0.1:{PORT}")
         except Exception:
             pass
-        import time
         time.sleep(180)
 
 # --- SMART FRIENDLY AI ASSISTANT FOR DMS (UNRESTRICTED) ---
@@ -79,7 +79,6 @@ logging.basicConfig(
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
-
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 DATA_FILE = "bot_data.json"
 KEY_FILE = "secret.key"
@@ -107,14 +106,14 @@ def get_or_create_encryption_key():
 
 cipher = Fernet(get_or_create_encryption_key())
 
-# --- ENCRYPTED PERSISTENT STORAGE FUNCTIONS---
+# --- ENCRYPTED PERSISTENT STORAGE FUNCTIONS ---
 def load_data():
     default_banned = {
         # --- English Slang & Profanity ---
         "abuse", "badword", "idiot", "sex", "porn", "adult", "fuck", "shit", 
         "bitch", "bastard", "asshole", "cunt", "dick", "pussy", "slut", "whore",
         "crap", "damn", "cock", "piss",
-        # --- Hindi / Hinglish Abusive Words---
+        # --- Hindi / Hinglish Abusive Words ---
         "bhadwa", "chutiya", "randi", "gali", "madarchod", "behanchod", 
         "bhenchod", "bhosdike", "gandu", "harami", "kamine", "kamin", 
         "lauda", "loda", "lund", "choot", "chuut", "saala", "saali", 
@@ -554,19 +553,20 @@ def main():
         app.add_handler(CommandHandler("listwords", list_words_cmd))
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
-
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dm_ai_assistant))
-
+        
+        # --- DM AI Assistant Handler (Unrestricted DMs) ---
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dm_ai_assistant))
+        
         app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
 
         app.add_error_handler(error_handler)
 
         print("Secure Bot is running smoothly...")
         app.run_polling(poll_interval=1.0, timeout=30, drop_pending_updates=True)
-     except Exception as e:
+        
+    except Exception as e:
         print(f"Bot start error: {e}")
 
 
 if __name__ == "__main__":
     main()
-
