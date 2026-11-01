@@ -41,21 +41,23 @@ def self_ping_loop():
             pass
         time.sleep(180)
 
-# --- SMART FRIENDLY AI ASSISTANT FOR DMS (UNRESTRICTED) ---
+# --- SMART FRIENDLY AI ASSISTANT FOR DMS (UNRESTRICTED WITH OWNER BYPASS) ---
 async def dm_ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Agar chat Private (DM) nahi hai, toh yeh function yahi se return ho jayega
-    # (Taki groups ki moderation restrictions par koi asar na pade)
     if update.effective_chat.type != "private":
         return
 
-    # User ka message capture karein
+    user_id = update.effective_user.id
+    
+    # Agar message bhejne wala owner hai, toh bot beech mein interfere nahi karega aur aapke actions/messages ko bypass karega
+    if user_id == ADMIN_CHAT_ID:
+        return
+
     user_message = update.message.text
     if not user_message:
         return
 
     user_text_lower = user_message.lower()
 
-    # Friendly, warm, aur smart conversational responses
     if any(word in user_text_lower for word in ["hello", "hi", "hey", "hii", "namaste"]):
         reply = "Hey there! 👋 Main aapka safety aur moderation assistant hoon. Bataiye, aaj main aapki kya madad kar sakta hoon?"
     elif any(word in user_text_lower for word in ["help", "features", "commands", "kya kar sakte ho"]):
@@ -63,7 +65,6 @@ async def dm_ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif any(word in user_text_lower for word in ["kaise ho", "how are you"]):
         reply = "Main ekdum 24/7 active aur badiya hoon! 🚀 Aap bataiye, sab kaisa chal raha hai?"
     else:
-        # General friendly fallback jo aapki guidelines (warm, polite, smart) match kare
         reply = f"Aapne bilkul theek kaha! Main aapki baatein sun raha hoon. Agar aapko bot ke features ya commands ke baare mein kuch janna hai, toh bejhijhak pooch sakte hain. 😊"
 
     await update.message.reply_text(reply)
@@ -89,7 +90,6 @@ def run_server():
     httpd = HTTPServer(server_address, HealthCheckHandler)
     httpd.serve_forever()
 
-# Background thread mein server start karein taaki bot band na ho
 threading.Thread(target=run_server, daemon=True).start()
 
 
@@ -109,15 +109,12 @@ cipher = Fernet(get_or_create_encryption_key())
 # --- ENCRYPTED PERSISTENT STORAGE FUNCTIONS ---
 def load_data():
     default_banned = {
-        # --- English Slang & Profanity ---
         "abuse", "badword", "idiot", "sex", "porn", "adult", "fuck", "shit", 
         "bitch", "bastard", "asshole", "cunt", "dick", "pussy", "slut", "whore",
-        "crap", "damn", "cock", "piss",
-        # --- Hindi / Hinglish Abusive Words ---
-        "bhadwa", "chutiya", "randi", "gali", "madarchod", "behanchod", 
-        "bhenchod", "bhosdike", "gandu", "harami", "kamine", "kamin", 
-        "lauda", "loda", "lund", "choot", "chuut", "saala", "saali", 
-        "kamina", "randwa", "tatta", "jhant"
+        "crap", "damn", "cock", "piss", "bhadwa", "chutiya", "randi", "gali", 
+        "madarchod", "behanchod", "bhenchod", "bhosdike", "gandu", "harami", 
+        "kamine", "kamin", "lauda", "loda", "lund", "choot", "chuut", "saala", 
+        "saali", "kamina", "randwa", "tatta", "jhant"
     }
     if os.path.exists(DATA_FILE):
         try:
@@ -152,7 +149,6 @@ def save_data():
     except Exception as e:
         print(f"Data Save/Encrypt Error: {e}")
 
-# Load initial data
 BANNED_WORDS, APPROVED_USERS, MEDIA_APPROVED_USERS = load_data()
 NOTIFIED_USERS = set()
 last_error_state = None
@@ -554,7 +550,7 @@ def main():
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
         
-        # --- DM AI Assistant Handler (Unrestricted DMs) ---
+        # --- DM AI Assistant Handler ---
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dm_ai_assistant))
         
         app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
