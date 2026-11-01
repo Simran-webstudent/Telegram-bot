@@ -563,9 +563,10 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dm_ai_assistant)
 
         print("Secure Bot is running smoothly...")
         app.run_polling(poll_interval=1.0, timeout=30, drop_pending_updates=True)
-    except Exception as e:
+     except Exception as e:
         print(f"Bot start error: {e}")
 
 
 if __name__ == "__main__":
     main()
+
