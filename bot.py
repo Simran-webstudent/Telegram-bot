@@ -60,22 +60,34 @@ DATA_FILE = "bot_data.json"
 
 # --- PERSISTENT STORAGE FUNCTIONS (JSON) ---
 def load_data():
+    default_banned = {
+        # --- English Slang & Profanity ---
+        "abuse", "badword", "idiot", "sex", "porn", "adult", "fuck", "shit", 
+        "bitch", "bastard", "asshole", "cunt", "dick", "pussy", "slut", "whore",
+        "crap", "damn", "cock", "piss",
+        # --- Hindi / Hinglish Abusive Words ---
+        "bhadwa", "chutiya", "randi", "gali", "madarchod", "behanchod", 
+        "bhenchod", "bhosdike", "gandu", "harami", "kamine", "kamin", 
+        "lauda", "loda", "lund", "choot", "chuut", "saala", "saali", 
+        "kamina", "randwa", "tatta", "jhant"
+    }
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 data = json.load(f)
                 return (
-                    set(data.get("banned_words", ["abuse", "badword", "idiot", "sex", "porn", "adult", "bhadwa", "chutiya", "randi", "gali"])),
+                    set(data.get("banned_words", list(default_banned))),
                     set(data.get("approved_users", [1448151744])),
                     set(data.get("media_approved_users", [1448151744]))
                 )
         except Exception as e:
             print(f"Data Load Error: {e}")
     return (
-        {"abuse", "badword", "idiot", "sex", "porn", "adult", "bhadwa", "chutiya", "randi", "gali"},
+        default_banned,
         {1448151744},
         {1448151744}
     )
+
 
 def save_data():
     try:
