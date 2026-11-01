@@ -28,9 +28,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is alive and running!")
 
 def start_dummy_server():
-    server = HTTPServer(("0.0.0.0", PORT), HealthCheckHandler)
-    server.serve_forever()
+    try:
+        server = HTTPServer(("0.0.0.0", PORT), HealthCheckHandler)
+        server.serve_forever()
+    except Exception as e:
+        print(f"Server start error: {e}")
 
+# Sirf ek baar background thread mein server start hoga (Address already in use fix)
 threading.Thread(target=start_dummy_server, daemon=True).start()
 
 def self_ping_loop():
@@ -40,6 +44,21 @@ def self_ping_loop():
         except Exception:
             pass
         time.sleep(180)
+
+threading.Thread(target=self_ping_loop, daemon=True).start()
+# -------------------------------------------------------------------------
+
+# Logging Setup
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+ADMIN_CHAT_ID = 1448151744  # Owner ID
+DATA_FILE = "bot_data.json"
+KEY_FILE = "secret.key"
 
 # --- SMART FRIENDLY AI ASSISTANT FOR DMS (UNRESTRICTED WITH OWNER BYPASS) ---
 async def dm_ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -68,29 +87,6 @@ async def dm_ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = f"Aapne bilkul theek kaha! Main aapki baatein sun raha hoon. Agar aapko bot ke features ya commands ke baare mein kuch janna hai, toh bejhijhak pooch sakte hain. 😊"
 
     await update.message.reply_text(reply)
-
-threading.Thread(target=self_ping_loop, daemon=True).start()
-# -------------------------------------------------------------------------
-
-# Logging Setup
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-ADMIN_CHAT_ID = 1448151744  # Owner ID
-DATA_FILE = "bot_data.json"
-KEY_FILE = "secret.key"
-
-# --- Built-in HTTP Server Keep-Alive for Fly.io ---
-def run_server():
-    server_address = ('0.0.0.0', PORT)
-    httpd = HTTPServer(server_address, HealthCheckHandler)
-    httpd.serve_forever()
-
-threading.Thread(target=run_server, daemon=True).start()
 
 
 # --- ENCRYPTION SETUP (FERNET) ---
