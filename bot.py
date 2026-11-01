@@ -36,12 +36,11 @@ threading.Thread(target=start_dummy_server, daemon=True).start()
 def self_ping_loop():
     while True:
         try:
-            # Apne aap ko har 3 minute mein ping karega
             urllib.request.urlopen(f"http://127.0.0.1:{PORT}")
         except Exception:
             pass
         import time
-        time.sleep(180) # 180 seconds = 3 minutes
+        time.sleep(180) # Har 3 minute mein self-ping
 
 threading.Thread(target=self_ping_loop, daemon=True).start()
 # -------------------------------------------------------------------------
@@ -59,7 +58,7 @@ BOT_TOKEN = (
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 DATA_FILE = "bot_data.json"
 
-# --- PERSISTENT STORAGE FUNCTIONS ---
+# --- PERSISTENT STORAGE FUNCTIONS (JSON) ---
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -86,7 +85,7 @@ def save_data():
             "media_approved_users": list(MEDIA_APPROVED_USERS)
         }
         with open(DATA_FILE, "w") as f:
-            json.dump(data, f)
+            json.dump(data, f, indent=4)
     except Exception as e:
         print(f"Data Save Error: {e}")
 
@@ -241,7 +240,7 @@ async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             NOTIFIED_USERS.remove(target_id)
         save_data()
         await update.message.reply_text(
-            f"✨ **Success!** {target_name} (ID: `{target_id}`) ab **Text Chat ke liye Approved** ho gaya hai!",
+            f"✨ **Success!** {target_name} (ID: `{target_id}`) ab **Text Chat ke liye Approved** ho gaya hai aur data save ho gaya hai!",
             parse_mode="Markdown"
         )
     else:
@@ -559,7 +558,7 @@ async def post_init(application):
     
     await application.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
-        text="✅ **Bot is online with Self-Ping Keep-Alive active!** 🚀",
+        text="✅ **Bot is online with Persistent JSON Storage & Keep-Alive!** 🚀",
         parse_mode="Markdown"
     )
 
