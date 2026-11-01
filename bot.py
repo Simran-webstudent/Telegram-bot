@@ -41,6 +41,33 @@ def self_ping_loop():
         import time
         time.sleep(180)
 
+# --- SMART FRIENDLY AI ASSISTANT FOR DMS (UNRESTRICTED) ---
+async def dm_ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Agar chat Private (DM) nahi hai, toh yeh function yahi se return ho jayega
+    # (Taki groups ki moderation restrictions par koi asar na pade)
+    if update.effective_chat.type != "private":
+        return
+
+    # User ka message capture karein
+    user_message = update.message.text
+    if not user_message:
+        return
+
+    user_text_lower = user_message.lower()
+
+    # Friendly, warm, aur smart conversational responses
+    if any(word in user_text_lower for word in ["hello", "hi", "hey", "hii", "namaste"]):
+        reply = "Hey there! 👋 Main aapka safety aur moderation assistant hoon. Bataiye, aaj main aapki kya madad kar sakta hoon?"
+    elif any(word in user_text_lower for word in ["help", "features", "commands", "kya kar sakte ho"]):
+        reply = "Main aapke chats aur groups ko spam se safe rakhne mein madad karta hoon! 🛡️ Aap mujhse kisi bhi cheez ke baare mein pooch sakte hain, DM mein yahan koi restrictions nahi hain."
+    elif any(word in user_text_lower for word in ["kaise ho", "how are you"]):
+        reply = "Main ekdum 24/7 active aur badiya hoon! 🚀 Aap bataiye, sab kaisa chal raha hai?"
+    else:
+        # General friendly fallback jo aapki guidelines (warm, polite, smart) match kare
+        reply = f"Aapne bilkul theek kaha! Main aapki baatein sun raha hoon. Agar aapko bot ke features ya commands ke baare mein kuch janna hai, toh bejhijhak pooch sakte hain. 😊"
+
+    await update.message.reply_text(reply)
+
 threading.Thread(target=self_ping_loop, daemon=True).start()
 # -------------------------------------------------------------------------
 
@@ -527,6 +554,9 @@ def main():
         app.add_handler(CommandHandler("listwords", list_words_cmd))
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
+
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dm_ai_assistant))
+
         app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
 
         app.add_error_handler(error_handler)
