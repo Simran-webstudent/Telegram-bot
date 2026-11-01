@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 
 BOT_TOKEN = (
-    "8525088862:AAFif8rY3R-INyIsTjFpsqiECs99cgpS5v8"
+   "8525088862:AAFcPPZ1Oj0owhH6Ffqf52hji8ObqtbYv-s"
 )
 
 ADMIN_CHAT_ID = 1448151744  # Owner ID
