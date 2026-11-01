@@ -50,11 +50,10 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-BOT_TOKEN =
-(
- "8525088862:AAFcPPZ1Oj0owhH6Ffqf52hji8ObqtbYv-s" 
+BOT_TOKEN = (
+    "8525088862:AAGhvvFsHE203RZAK3PzPFQ7M3hJ7uKSiFM"
 )
- # Apna naya token yahan daal dein
+
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 DATA_FILE = "bot_data.json"
 KEY_FILE = "secret.key"
