@@ -56,19 +56,16 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 DATA_FILE = "bot_data.json"
 KEY_FILE = "secret.key"
-# --- Background Flask Server for Fly.io Keep-Alive ---
-app = Flask('')
 
-@app.route('/')
-def home():
-    return "Bot is alive!"
+# --- Built-in HTTP Server Keep-Alive for Fly.io ---
+def run_server():
+    server_address = ('0.0.0.0', PORT)
+    httpd = HTTPServer(server_address, HealthCheckHandler)
+    httpd.serve_forever()
 
-def run_http():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+# Background thread mein server start karein taaki bot band na ho
+threading.Thread(target=run_server, daemon=True).start()
 
-# Background thread mein server chalayein taaki bot band na ho
-threading.Thread(target=run_http, daemon=True).start()
 
 # --- ENCRYPTION SETUP (FERNET) ---
 def get_or_create_encryption_key():
