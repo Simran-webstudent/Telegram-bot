@@ -50,9 +50,8 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-BOT_TOKEN = (
-    "8525088862:AAGhvvFsHE203RZAK3PzPFQ7M3hJ7uKSiFM"
-)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
 
 ADMIN_CHAT_ID = 1448151744  # Owner ID
 DATA_FILE = "bot_data.json"
