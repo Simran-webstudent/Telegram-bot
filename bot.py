@@ -1,8 +1,10 @@
 import os
 import sys
+import json
 import asyncio
 import logging
 import threading
+import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, BotCommand
 from telegram.request import HTTPXRequest
@@ -14,7 +16,9 @@ from telegram.ext import (
     filters,
 )
 
-# --- DUMMY HTTP SERVER FOR CLOUD HOSTING (RENDER / FLY.IO HEALTH CHECK) ---
+# --- DUMMY HTTP SERVER & AUTO-PING KEEP ALIVE FOR FLY.IO ---
+PORT = int(os.environ.get("PORT", 8080))
+
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -22,11 +26,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is alive and running!")
 
 def start_dummy_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server = HTTPServer(("0.0.0.0", PORT), HealthCheckHandler)
     server.serve_forever()
 
+# Background server thread start karein
 threading.Thread(target=start_dummy_server, daemon=True).start()
+
+# Self-Ping function jo machine ko sone nahi dega
+def self_ping_loop():
+    while True:
+        try:
+            # Apne aap ko har 3 minute mein ping karega
+            urllib.request.urlopen(f"http://127.0.0.1:{PORT}")
+        except Exception:
+            pass
+        import time
+        time.sleep(180) # 180 seconds = 3 minutes
+
+threading.Thread(target=self_ping_loop, daemon=True).start()
 # -------------------------------------------------------------------------
 
 # Logging Setup
@@ -35,30 +52,48 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-# Configuration (Using parentheses to handle mobile screen line-wrapping safely)
 BOT_TOKEN = (
     "8525088862:AAFif8rY3R-INyIsTjFpsqiECs99cgpS5v8"
 )
 
 ADMIN_CHAT_ID = 1448151744  # Owner ID
+DATA_FILE = "bot_data.json"
 
-# Dynamic Banned words Set (Ab aap inhein DM se add/remove kar sakti hain)
-BANNED_WORDS = {
-    "abuse", "badword", "idiot", "sex", "porn", "adult", "bhadwa", "chutiya", "randi", "gali"
-}
+# --- PERSISTENT STORAGE FUNCTIONS ---
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+                return (
+                    set(data.get("banned_words", ["abuse", "badword", "idiot", "sex", "porn", "adult", "bhadwa", "chutiya", "randi", "gali"])),
+                    set(data.get("approved_users", [1448151744])),
+                    set(data.get("media_approved_users", [1448151744]))
+                )
+        except Exception as e:
+            print(f"Data Load Error: {e}")
+    return (
+        {"abuse", "badword", "idiot", "sex", "porn", "adult", "bhadwa", "chutiya", "randi", "gali"},
+        {1448151744},
+        {1448151744}
+    )
 
-APPROVED_USERS = {1448151744}       # Normal text chat ke liye approved users
-MEDIA_APPROVED_USERS = {1448151744}  # Sirf media sharing ke liye approved users
+def save_data():
+    try:
+        data = {
+            "banned_words": list(BANNED_WORDS),
+            "approved_users": list(APPROVED_USERS),
+            "media_approved_users": list(MEDIA_APPROVED_USERS)
+        }
+        with open(DATA_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"Data Save Error: {e}")
+
+# Load initial data
+BANNED_WORDS, APPROVED_USERS, MEDIA_APPROVED_USERS = load_data()
 NOTIFIED_USERS = set()
 last_error_state = None
-
-
-# --- RESTART COMMAND ---
-async def restart_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_CHAT_ID:
-        return
-    await update.message.reply_text("🔄 **Bot restart ho raha hai...** 🚀", parse_mode="Markdown")
-    os.execv(sys.executable, ['python'] + sys.argv)
 
 
 # --- HELP COMMAND ---
@@ -78,12 +113,11 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   • `/mediaapprove <USER_ID>` / Reply to message\n\n"
         "5️⃣ **/mediarestrict** — User ki media sharing permission wapas lene ke liye:\n"
         "   • `/mediarestrict <USER_ID>` / Reply to message\n\n"
-        "6️⃣ 📝 **BANNED WORDS MANAGEMENT (NEW):**\n"
+        "6️⃣ 📝 **BANNED WORDS MANAGEMENT:**\n"
         "   • `/addword <word>` — Naya banned word add karne ke liye\n"
         "   • `/delword <word>` — Banned word hatane ke liye\n"
         "   • `/listwords` — Saare active banned words ki list dekhne ke liye\n\n"
-        "7️⃣ **/restart** — Bot ko instantly restart karne ke liye.\n"
-        "8️⃣ **.del** — Message delete karne ke liye."
+        "7️⃣ **.del** — Message delete karne ke liye."
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -98,7 +132,8 @@ async def add_word_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     word = context.args[0].lower().strip()
     BANNED_WORDS.add(word)
-    await update.message.reply_text(f"✅ **Success!** `{word}` ko banned words list mein add kar diya gaya hai.", parse_mode="Markdown")
+    save_data()
+    await update.message.reply_text(f"✅ **Success!** `{word}` ko banned words list mein add karke save kar diya gaya hai.", parse_mode="Markdown")
 
 async def del_word_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
@@ -110,6 +145,7 @@ async def del_word_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     word = context.args[0].lower().strip()
     if word in BANNED_WORDS:
         BANNED_WORDS.remove(word)
+        save_data()
         await update.message.reply_text(f"🗑️ **Success!** `{word}` ko banned words list se hata diya gaya hai.", parse_mode="Markdown")
     else:
         await update.message.reply_text(f"⚠️ `{word}` list mein maujud nahi hai.", parse_mode="Markdown")
@@ -203,6 +239,7 @@ async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         APPROVED_USERS.add(target_id)
         if target_id in NOTIFIED_USERS:
             NOTIFIED_USERS.remove(target_id)
+        save_data()
         await update.message.reply_text(
             f"✨ **Success!** {target_name} (ID: `{target_id}`) ab **Text Chat ke liye Approved** ho gaya hai!",
             parse_mode="Markdown"
@@ -240,6 +277,7 @@ async def restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if target_id in APPROVED_USERS:
             APPROVED_USERS.remove(target_id)
+            save_data()
         
         await update.message.reply_text(
             f"🔒 **Success!** User (`{target_id}`) ko text chat se **Restrict** kar diya gaya hai!",
@@ -278,6 +316,7 @@ async def media_approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if target_id:
         MEDIA_APPROVED_USERS.add(target_id)
+        save_data()
         await update.message.reply_text(
             f"🖼️ **Success!** {target_name} (ID: `{target_id}`) ko **Media Sharing ke liye Approve** kar diya gaya hai!",
             parse_mode="Markdown"
@@ -315,6 +354,7 @@ async def media_restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         if target_id in MEDIA_APPROVED_USERS:
             MEDIA_APPROVED_USERS.remove(target_id)
+            save_data()
         
         await update.message.reply_text(
             f"🔒 **Success!** User (`{target_id}`) ki **Media Sharing restrict** kar di gayi hai!",
@@ -322,7 +362,7 @@ async def media_restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     else:
         await update.message.reply_text(
-            "⚠️ **Usage:** `/mediarestrict <USER_ID>` / `/mediarestrict @username` ya message par reply karein.",
+            "⚠️ **Usage:** `/mediarestrict <USER_ID>` / `/mediarestrict @username` ya user ke message par reply karein.",
             parse_mode="Markdown"
         )
 
@@ -335,6 +375,7 @@ async def handle_contact_share(update: Update, context: ContextTypes.DEFAULT_TYP
     if contact and contact.user_id:
         APPROVED_USERS.add(contact.user_id)
         MEDIA_APPROVED_USERS.add(contact.user_id)
+        save_data()
         await update.message.reply_text(f"✨ Contact **{contact.first_name}** ko text aur media dono ke liye approve kar diya gaya hai!")
 
 
@@ -513,13 +554,12 @@ async def post_init(application):
         BotCommand("addword", "Naya banned word add karein"),
         BotCommand("delword", "Banned word hatayein"),
         BotCommand("listwords", "Banned words ki list dekhein"),
-        BotCommand("restart", "Bot restart karein"),
         BotCommand("del", "Message delete karein")
     ])
     
     await application.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
-        text="✅ **Bot is online with Dynamic Banned Words & Separate Media controls active!** 🚀",
+        text="✅ **Bot is online with Self-Ping Keep-Alive active!** 🚀",
         parse_mode="Markdown"
     )
 
@@ -542,7 +582,6 @@ def main():
         )
 
         # Handlers Registration
-        app.add_handler(CommandHandler("restart", restart_bot))
         app.add_handler(CommandHandler("help", help_cmd))
         app.add_handler(CommandHandler("check", check_user_cmd))
         app.add_handler(CommandHandler("approve", approve_user))
