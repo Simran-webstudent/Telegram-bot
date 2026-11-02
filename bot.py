@@ -18,7 +18,7 @@ from telegram.ext import (
     filters,
 )
 
-# --- DUMMY HTTP SERVER & AUTO-PING KEEP ALIVE FOR FLY.IO ---
+# --- DUMMY HTTP SERVER & AUTO-PING KEEP ALIVE ---
 PORT = int(os.environ.get("PORT", 8080))
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -34,7 +34,6 @@ def start_dummy_server():
     except Exception as e:
         print(f"Server start error: {e}")
 
-# Sirf ek baar background thread mein server start hoga (Address already in use fix)
 threading.Thread(target=start_dummy_server, daemon=True).start()
 
 def self_ping_loop():
@@ -46,7 +45,6 @@ def self_ping_loop():
         time.sleep(180)
 
 threading.Thread(target=self_ping_loop, daemon=True).start()
-# -------------------------------------------------------------------------
 
 # Logging Setup
 logging.basicConfig(
@@ -67,7 +65,6 @@ async def dm_ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
     
-    # Agar message bhejne wala owner hai, toh bot beech mein interfere nahi karega aur aapke actions/messages ko bypass karega
     if user_id == ADMIN_CHAT_ID:
         return
 
@@ -121,14 +118,16 @@ def load_data():
                 return (
                     set(data.get("banned_words", list(default_banned))),
                     set(data.get("approved_users", [1448151744])),
-                    set(data.get("media_approved_users", [1448151744]))
+                    set(data.get("media_approved_users", [1448151744])),
+                    set(data.get("blocked_users", []))
                 )
         except Exception as e:
             print(f"Data Load/Decrypt Error: {e}")
     return (
         default_banned,
         {1448151744},
-        {1448151744}
+        {1448151744},
+        set()
     )
 
 def save_data():
@@ -136,7 +135,8 @@ def save_data():
         data = {
             "banned_words": list(BANNED_WORDS),
             "approved_users": list(APPROVED_USERS),
-            "media_approved_users": list(MEDIA_APPROVED_USERS)
+            "media_approved_users": list(MEDIA_APPROVED_USERS),
+            "blocked_users": list(BLOCKED_USERS)
         }
         json_str = json.dumps(data)
         encrypted_data = cipher.encrypt(json_str.encode("utf-8"))
@@ -145,7 +145,7 @@ def save_data():
     except Exception as e:
         print(f"Data Save/Encrypt Error: {e}")
 
-BANNED_WORDS, APPROVED_USERS, MEDIA_APPROVED_USERS = load_data()
+BANNED_WORDS, APPROVED_USERS, MEDIA_APPROVED_USERS, BLOCKED_USERS = load_data()
 NOTIFIED_USERS = set()
 last_error_state = None
 
@@ -235,11 +235,12 @@ async def check_user_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target_identifier = f"Username: @{target_username} (ID: `{target_id}`)"
 
     if target_id:
-        is_text_approved = target_id in APPROVED_USERS
-        is_media_approved = target_id in MEDIA_APPROVED_USERS
+        is_blocked = target_id in BLOCKED_USERS
+        is_text_approved = target_id in APPROVED_USERS and not is_blocked
+        is_media_approved = target_id in MEDIA_APPROVED_USERS and not is_blocked
         
-        text_status = "✨ Approved (Text Allowed)" if is_text_approved else "🔒 Restricted"
-        media_status = "🖼️ Allowed (Media Permitted)" if is_media_approved else "🚫 Restricted (Media Blocked)"
+        text_status = "🔒 Manually Restricted" if is_blocked else ("✨ Approved (Text Allowed)" if is_text_approved else "🔒 Restricted")
+        media_status = "🔒 Manually Restricted" if is_blocked else ("🖼️ Allowed (Media Permitted)" if is_media_approved else "🚫 Restricted (Media Blocked)")
         
         report_text = (
             f"🔍 **USER CHECK REPORT**\n\n"
@@ -278,6 +279,9 @@ async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if target_id:
         APPROVED_USERS.add(target_id)
+        MEDIA_APPROVED_USERS.add(target_id)
+        if target_id in BLOCKED_USERS:
+            BLOCKED_USERS.remove(target_id)
         if target_id in NOTIFIED_USERS:
             NOTIFIED_USERS.remove(target_id)
         save_data()
@@ -313,9 +317,12 @@ async def restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ Aap owner ko restrict nahi kar sakte!")
             return
         
+        BLOCKED_USERS.add(target_id)
         if target_id in APPROVED_USERS:
             APPROVED_USERS.remove(target_id)
-            save_data()
+        if target_id in MEDIA_APPROVED_USERS:
+            MEDIA_APPROVED_USERS.remove(target_id)
+        save_data()
         
         await update.message.reply_text(f"🔒 **Success!** User (`{target_id}`) restricted securely!", parse_mode="Markdown")
     else:
@@ -344,6 +351,8 @@ async def media_approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if target_id:
         MEDIA_APPROVED_USERS.add(target_id)
+        if target_id in BLOCKED_USERS:
+            BLOCKED_USERS.remove(target_id)
         save_data()
         await update.message.reply_text(f"🖼️ **Success!** {target_name} media approved securely!", parse_mode="Markdown")
     else:
@@ -371,7 +380,7 @@ async def media_restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         if target_id in MEDIA_APPROVED_USERS:
             MEDIA_APPROVED_USERS.remove(target_id)
-            save_data()
+        save_data()
         await update.message.reply_text(f"🔒 **Success!** User media restricted securely!", parse_mode="Markdown")
     else:
         await update.message.reply_text("⚠️ **Usage:** `/mediarestrict <USER_ID>`", parse_mode="Markdown")
@@ -385,6 +394,8 @@ async def handle_contact_share(update: Update, context: ContextTypes.DEFAULT_TYP
     if contact and contact.user_id:
         APPROVED_USERS.add(contact.user_id)
         MEDIA_APPROVED_USERS.add(contact.user_id)
+        if contact.user_id in BLOCKED_USERS:
+            BLOCKED_USERS.remove(contact.user_id)
         save_data()
         await update.message.reply_text(f"✨ Contact **{contact.first_name}** approved and encrypted successfully!")
 
@@ -411,6 +422,16 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not sender:
         return
 
+    user_id = sender.id
+
+    # 1. SABSE PEHLA CHECK: Agar user manually restricted/blocked list mein hai
+    if user_id in BLOCKED_USERS:
+        try:
+            await message.delete()
+        except Exception as e:
+            print(f"Blocked User Delete Error: {e}")
+        return
+
     if sender.username:
         context.bot_data[f"user_{sender.username.lower()}"] = sender.id
 
@@ -418,7 +439,6 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     user_name = sender.first_name or "Dear"
-    user_id = sender.id
 
     # Media Check
     has_restricted_media = bool(
@@ -546,10 +566,11 @@ def main():
         app.add_handler(CommandHandler("del", delete_cmd))
         app.add_handler(MessageHandler(filters.CONTACT, handle_contact_share))
         
+        # --- FIX: SECURITY & RESTRICTION HANDLER KO PEHLE RAKHEIN ---
+        app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
+        
         # --- DM AI Assistant Handler ---
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dm_ai_assistant))
-        
-        app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, process_incoming_dm))
 
         app.add_error_handler(error_handler)
 
