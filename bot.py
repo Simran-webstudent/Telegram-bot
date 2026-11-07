@@ -443,7 +443,7 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Media Check
     has_restricted_media = bool(
         message.animation or message.photo or message.video or 
-        message.video_note or message.document or message.audio or message.voice
+        message.video_note or message.document or message.audio or message.voice or message.sticker
     )
 
     if has_restricted_media and (user_id not in MEDIA_APPROVED_USERS):
