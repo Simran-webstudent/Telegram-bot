@@ -220,14 +220,13 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "2️⃣ **/datastore** — Sabhi approved aur banned lists dekhein\n"
         "3️⃣ **/manual <user_id>** — Manual chat handling mode toggle karein (Bot pause)\n"
         "4️⃣ **/check** — User details aur approval status check karein\n"
-        "5️⃣ **/approve** — Text chat approve karein\n"
-        "6️⃣ **/restrict** — Text chat restrict karein\n"
-        "7️⃣ **Granular Media Commands:**\n"
-        "   • `/photorestrict` / `/photoapprove`\n"
-        "   • `/stickerrestrict` / `/stickerapprove`\n"
-        "   • `/docrestrict` / `/docapprove`\n"
-        "8️⃣ **.del** — Kisi bhi message ko quietly delete karne ke liye.\n"
-        "9️⃣ **/restart** — Bot ko restart karein."
+        "5️⃣ **/approve** / `/restrict` — Text chat approve/restrict karein\n"
+        "6️⃣ **Granular Media Commands:**\n"
+        "   • `/photoapprove` / `/photorestrict`\n"
+        "   • `/stickerapprove` / `/stickerrestrict`\n"
+        "   • `/docapprove` / `/docrestrict`\n"
+        "7️⃣ **.del** — Kisi bhi message ko quietly delete karne ke liye.\n"
+        "8️⃣ **/restart** — Bot ko restart karein."
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -309,7 +308,7 @@ async def check_user_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/check <USER_ID>` ya message par reply karein.", parse_mode="Markdown")
 
 
-# --- APPROVE / RESTRICT COMMANDS (TEXT & CATEGORIES) ---
+# --- APPROVE / RESTRICT COMMANDS (TEXT & CATEGories) ---
 async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
         return
@@ -352,7 +351,7 @@ async def restrict_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ **Usage:** `/restrict <USER_ID>`", parse_mode="Markdown")
 
 
-# --- GRANULAR CATEGORY COMMANDS ---
+# --- GRANULAR CATEGORY COMMANDS (INDEPENDENT APPROVE & RESTRICT) ---
 async def photo_approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
         return
@@ -360,7 +359,7 @@ async def photo_approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if target_id:
         PHOTO_VIDEO_APPROVED.add(target_id)
         save_data()
-        await update.message.reply_text(f"🖼️ Photo/Video approved for `{target_id}`", parse_mode="Markdown")
+        await update.message.reply_text(f"🖼️ **Photo/Video Approved** for `{target_id}`", parse_mode="Markdown")
 
 async def photo_restrict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
@@ -369,7 +368,7 @@ async def photo_restrict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if target_id and target_id in PHOTO_VIDEO_APPROVED:
         PHOTO_VIDEO_APPROVED.remove(target_id)
         save_data()
-        await update.message.reply_text(f"🔒 Photo/Video restricted for `{target_id}`", parse_mode="Markdown")
+        await update.message.reply_text(f"🔒 **Photo/Video Restricted** for `{target_id}`", parse_mode="Markdown")
 
 async def sticker_approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
@@ -378,7 +377,7 @@ async def sticker_approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     if target_id:
         STICKER_EMOJI_APPROVED.add(target_id)
         save_data()
-        await update.message.reply_text(f"🎨 Sticker/Emoji approved for `{target_id}`", parse_mode="Markdown")
+        await update.message.reply_text(f"🎨 **Sticker/Emoji/GIF Approved** for `{target_id}`", parse_mode="Markdown")
 
 async def sticker_restrict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
@@ -387,7 +386,7 @@ async def sticker_restrict_cmd(update: Update, context: ContextTypes.DEFAULT_TYP
     if target_id and target_id in STICKER_EMOJI_APPROVED:
         STICKER_EMOJI_APPROVED.remove(target_id)
         save_data()
-        await update.message.reply_text(f"🔒 Sticker/Emoji restricted for `{target_id}`", parse_mode="Markdown")
+        await update.message.reply_text(f"🔒 **Sticker/Emoji/GIF Restricted** for `{target_id}`", parse_mode="Markdown")
 
 async def doc_approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
@@ -396,7 +395,7 @@ async def doc_approve_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if target_id:
         DOCUMENT_AUDIO_APPROVED.add(target_id)
         save_data()
-        await update.message.reply_text(f"📁 Document/Audio approved for `{target_id}`", parse_mode="Markdown")
+        await update.message.reply_text(f"📁 **Document/Audio/Voice Approved** for `{target_id}`", parse_mode="Markdown")
 
 async def doc_restrict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
@@ -405,7 +404,7 @@ async def doc_restrict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if target_id and target_id in DOCUMENT_AUDIO_APPROVED:
         DOCUMENT_AUDIO_APPROVED.remove(target_id)
         save_data()
-        await update.message.reply_text(f"🔒 Document/Audio restricted for `{target_id}`", parse_mode="Markdown")
+        await update.message.reply_text(f"🔒 **Document/Audio/Voice Restricted** for `{target_id}`", parse_mode="Markdown")
 
 
 # --- UNIFIED DM & GRANULAR RESTRICTION HANDLER WITH AI FLOW & MANUAL PAUSE ---
@@ -585,6 +584,12 @@ async def post_init(application):
         BotCommand("check", "User status check karein"),
         BotCommand("approve", "User fully approve karein"),
         BotCommand("restrict", "User restrict karein"),
+        BotCommand("photoapprove", "Photo/Video approve karein"),
+        BotCommand("photorestrict", "Photo/Video restrict karein"),
+        BotCommand("stickerapprove", "Sticker/Emoji approve karein"),
+        BotCommand("stickerrestrict", "Sticker/Emoji restrict karein"),
+        BotCommand("docapprove", "Document/Audio approve karein"),
+        BotCommand("docrestrict", "Document/Audio restrict karein"),
         BotCommand("restart", "Bot restart karein"),
         BotCommand("del", "Message delete karein (.del)")
     ])
@@ -625,7 +630,6 @@ def main():
         app.run_polling(poll_interval=1.0, timeout=30, drop_pending_updates=True)
         
     except Exception as e:
-    
         print(f"Bot start error: {e}")
 
 
