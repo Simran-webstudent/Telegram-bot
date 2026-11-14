@@ -578,7 +578,7 @@ async def process_incoming_dm(update: Update, context: ContextTypes.DEFAULT_TYPE
         if current_state == 'initial_prompt':
             USER_STATES[user_id] = 'awaiting_reason'
             try:
-                response_text = "I'm doing well, but I don't really do random chats with unknown people unless there's a specific reason or work involved. It's enough here."
+                response_text = "I'm doing well, but I don't really do random chats with unknown people unless there's a specific reason or work involved."
                 if is_business and business_conn_id:
                     await context.bot.send_message(chat_id=message.chat_id, text=response_text, business_connection_id=business_conn_id)
                 else:
